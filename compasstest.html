@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Display a popup on click</title>
+  <title>Compass Near User Location</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css" rel="stylesheet" />
@@ -23,12 +23,10 @@
       border: 1px solid black;
     }
     #compass {
-      position: absolute;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
       width: 50px;
       height: 50px;
+      position: absolute;
+      transform: translate(-50%, -50%) rotate(0deg); /* Centered and rotated */
     }
   </style>
 </head>
@@ -36,7 +34,7 @@
 <body>
   <div id="map"></div>
   <div id="distance">Distance: </div>
-  <img id="compass" src="compass.png" alt="Compass">
+  <img id="compass" src="https://i.imgur.com/4YVZ3S7.png" alt="Compass" />
   <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoicGV0ZXJtY2tqIiwiYSI6ImNrdXIxazRtajA5YXUyd3A1ZGVkdWRqcm4ifQ.4cqE3n7zDFniqDW79EuwYQ';
     const map = new mapboxgl.Map({
@@ -64,23 +62,6 @@
                 Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
-    };
-
-    // Calculate bearing from point A to point B
-    const calculateBearing = (start, end) => {
-      const toRad = (deg) => deg * Math.PI / 180;
-      const toDeg = (rad) => rad * 180 / Math.PI;
-      
-      const lat1 = toRad(start[1]);
-      const lon1 = toRad(start[0]);
-      const lat2 = toRad(end[1]);
-      const lon2 = toRad(end[0]);
-
-      const dLon = lon2 - lon1;
-      const y = Math.sin(dLon) * Math.cos(lat2);
-      const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-      const brng = toDeg(Math.atan2(y, x));
-      return (brng + 360) % 360;
     };
 
     // Function to update line and distance display
@@ -195,6 +176,27 @@
               .addTo(map);
             map.setCenter(userLocation);
             map.setZoom(10);
+
+            // Position the compass near the user's location marker
+            const userMarkerElement = userMarker.getElement();
+            const userMarkerBounds = userMarkerElement.getBoundingClientRect();
+            compassElement.style.left = `${userMarkerBounds.left + userMarkerBounds.width / 2}px`;
+            compassElement.style.top = `${userMarkerBounds.top - 60}px`; // Adjust position as needed
+
+            // Device orientation handling
+            if (DeviceOrientationEvent.requestPermission) {
+              DeviceOrientationEvent.requestPermission()
+                .then(permissionState => {
+                  if (permissionState === 'granted') {
+                    window.addEventListener('deviceorientation', handleDeviceOrientation);
+                  } else {
+                    console.log('Device orientation permission denied.');
+                  }
+                })
+                .catch(console.error);
+            } else {
+              window.addEventListener('deviceorientation', handleDeviceOrientation);
+            }
           },
           (error) => {
             console.error('Error getting user location:', error);
@@ -207,13 +209,8 @@
 
     // Function to handle device orientation events
     const handleDeviceOrientation = (event) => {
-      if (!userLocation || !attractionCoords) return;
-
       const alpha = event.alpha; // rotation around z-axis
-      const attractionBearing = calculateBearing(userLocation, attractionCoords);
-      const rotation = (attractionBearing - alpha + 360) % 360;
-
-      compassElement.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+      compassElement.style.transform = `translate(-50%, -50%) rotate(${360 - alpha}deg)`; // Compass arrow points north
     };
   </script>
 </body>
